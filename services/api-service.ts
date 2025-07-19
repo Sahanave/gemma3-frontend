@@ -1,18 +1,13 @@
-// Simple API Service for 3 endpoints
+// Updated API service to use local config
 
-import type {
-  ApiConfig,
-  SendTaskRequest,
-  SendTaskResponse,
-  CameraWristResponse,
-  CameraTopResponse,
-} from "../types/api-contract"
+import { API_CONFIG } from "@/lib/config"
+import type { SendTaskRequest, SendTaskResponse, CameraWristResponse, CameraTopResponse } from "../types/api-contract"
 
 export class RobotApiService {
-  private config: ApiConfig
+  private baseUrl: string
 
-  constructor(config: ApiConfig) {
-    this.config = config
+  constructor() {
+    this.baseUrl = API_CONFIG.baseUrl
   }
 
   // 1. Send Task (Voice Recording)
@@ -24,7 +19,7 @@ export class RobotApiService {
     }
 
     try {
-      const response = await fetch(`${this.config.baseUrl}/api/send-task`, {
+      const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.sendTask}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -45,7 +40,7 @@ export class RobotApiService {
   // 2. Get Camera Wrist
   async getCameraWrist(): Promise<CameraWristResponse> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/api/camera/wrist`, {
+      const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.cameraWrist}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -64,7 +59,7 @@ export class RobotApiService {
   // 3. Get Camera Top
   async getCameraTop(): Promise<CameraTopResponse> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/api/camera/top`, {
+      const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.cameraTop}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
