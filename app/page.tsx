@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Play, Pause, Mic, MicOff } from "lucide-react"
 
-export default function Page() {
+export default function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMicActive, setIsMicActive] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
