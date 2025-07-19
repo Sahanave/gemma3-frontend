@@ -11,10 +11,6 @@ export default function Page() {
   const [audioLevel, setAudioLevel] = useState(0)
   const [camera1Connected, setCamera1Connected] = useState(false)
   const [camera2Connected, setCamera2Connected] = useState(false)
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Robot initialized successfully", timestamp: "10:30 AM", type: "system" },
-    { id: 2, text: "Hello! How can I help you today?", timestamp: "10:31 AM", type: "robot" },
-  ])
   const [newMessage, setNewMessage] = useState("")
 
   // Simulate audio levels when playing
@@ -62,30 +58,6 @@ export default function Page() {
     setIsMicActive(!isMicActive)
   }
 
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      const message = {
-        id: messages.length + 1,
-        text: newMessage,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        type: "user",
-      }
-      setMessages([...messages, message])
-      setNewMessage("")
-
-      // Simulate robot response
-      setTimeout(() => {
-        const robotResponse = {
-          id: messages.length + 2,
-          text: "I understand. Let me process that request.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          type: "robot",
-        }
-        setMessages((prev) => [...prev, robotResponse])
-      }, 1000)
-    }
-  }
-
   return (
     <div className="w-full h-screen bg-gray-900 flex flex-col">
       {/* Header */}
@@ -96,7 +68,7 @@ export default function Page() {
         {/* Left Side - Voice Visualization and Chat */}
         <div className="w-1/2 bg-gray-900 flex flex-col">
           {/* Voice Visualization Section */}
-          <div className="flex-1 flex flex-col items-center justify-center relative">
+          <div className="h-full flex flex-col items-center justify-center relative">
             {/* Voice Visualization Circle */}
             <div className="relative w-64 h-64">
               <svg width="256" height="256" className="absolute inset-0">
@@ -178,50 +150,6 @@ export default function Page() {
                 {isMicActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
                 {isMicActive ? "Mute" : "Unmute"}
               </Button>
-            </div>
-          </div>
-
-          {/* Chat Section */}
-          <div className="h-80 bg-gray-800 border-t border-gray-700 flex flex-col">
-            <div className="p-3 border-b border-gray-700">
-              <h4 className="text-white font-medium text-sm">Chat with Robot</h4>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
-                      message.type === "user"
-                        ? "bg-blue-600 text-white"
-                        : message.type === "robot"
-                          ? "bg-gray-700 text-white"
-                          : "bg-gray-600 text-gray-300"
-                    }`}
-                  >
-                    <p>{message.text}</p>
-                    <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Message Input */}
-            <div className="p-3 border-t border-gray-700">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-gray-700 text-white px-3 py-2 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <Button onClick={sendMessage} size="sm" className="px-4">
-                  Send
-                </Button>
-              </div>
             </div>
           </div>
         </div>
