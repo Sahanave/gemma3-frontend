@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "functions": {
+    "app/page.tsx": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
