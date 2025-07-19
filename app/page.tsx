@@ -11,7 +11,6 @@ export default function Page() {
   const [audioLevel, setAudioLevel] = useState(0)
   const [camera1Connected, setCamera1Connected] = useState(false)
   const [camera2Connected, setCamera2Connected] = useState(false)
-  const [newMessage, setNewMessage] = useState("")
 
   // Simulate audio levels when playing
   useEffect(() => {
@@ -65,9 +64,8 @@ export default function Page() {
 
       {/* Main Split Screen */}
       <div className="flex-1 flex">
-        {/* Left Side - Voice Visualization and Chat */}
+        {/* Left Side - Voice Visualization */}
         <div className="w-1/2 bg-gray-900 flex flex-col">
-          {/* Voice Visualization Section */}
           <div className="h-full flex flex-col items-center justify-center relative">
             {/* Voice Visualization Circle */}
             <div className="relative w-64 h-64">
@@ -154,7 +152,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Right Side - Content Area */}
+        {/* Right Side - Camera Control */}
         <div className="w-1/2 bg-gray-100 flex items-center justify-center relative overflow-hidden">
           {/* Background placeholder */}
           <div
