@@ -1,7 +1,14 @@
-// Updated API service to use local config
+// Updated API Service with High Level Processing
 
 import { API_CONFIG } from "@/lib/config"
-import type { SendTaskRequest, SendTaskResponse, CameraWristResponse, CameraTopResponse, GenerateAudioRequest, GenerateAudioResponse } from "../types/api-contract"
+import type {
+  SendTaskRequest,
+  SendTaskResponse,
+  CameraWristResponse,
+  CameraTopResponse,
+  HighLevelRequest,
+  HighLevelResponse,
+} from "../types/api-contract"
 
 export class RobotApiService {
   private baseUrl: string
@@ -75,14 +82,16 @@ export class RobotApiService {
     }
   }
 
-  // 4. Generate Audio
-  async generateAudio(script: string): Promise<GenerateAudioResponse> {
-    const requestData: GenerateAudioRequest = {
-      script,
+  // 4. High Level Processing (NEW)
+  async processHighLevel(voiceData: string, format: "wav" | "mp3" | "webm" = "wav"): Promise<HighLevelResponse> {
+    const requestData: HighLevelRequest = {
+      voiceData,
+      format,
+      timestamp: new Date().toISOString(),
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.generateAudio}`, {
+      const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.highLevel}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +103,10 @@ export class RobotApiService {
     } catch (error) {
       return {
         success: false,
-        error: `Failed to generate audio: ${error}`,
+        text: "",
+        hasAudio: false,
+        timestamp: new Date().toISOString(),
+        error: `Failed to process high level: ${error}`,
       }
     }
   }

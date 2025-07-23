@@ -35,17 +35,29 @@ export interface CameraTopResponse {
   error?: string
 }
 
-// 4. Generate Audio
-export interface GenerateAudioRequest {
-  script: string
+// 4. High Level Processing (NEW)
+export interface HighLevelRequest {
+  voiceData: string // base64 encoded audio
+  format: "wav" | "mp3" | "webm"
+  timestamp: string
 }
 
-export interface GenerateAudioResponse {
+export interface HighLevelResponse {
   success: boolean
-  audioData?: string // base64 encoded audio
-  format?: string
-  timestamp?: string
+  text: string // Response text to display in chat
+  audioData?: string // base64 encoded audio: "data:audio/wav;base64,..."
+  hasAudio: boolean
+  timestamp: string
   error?: string
+}
+
+// Chat Message
+export interface ChatMessage {
+  id: string
+  text: string
+  sender: "user" | "robot"
+  timestamp: string
+  hasAudio?: boolean
 }
 
 // API Response wrapper

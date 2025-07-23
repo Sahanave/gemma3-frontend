@@ -1,67 +1,42 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, Mic, MicOff } from "lucide-react"
+import { Mic, MicOff, Bot } from "lucide-react"
 import { RobotApiService } from "@/services/api-service"
+import type { ChatMessage } from "@/types/api-contract"
 
 export default function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMicActive, setIsMicActive] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
   const [camera1Connected, setCamera1Connected] = useState(false)
   const [camera2Connected, setCamera2Connected] = useState(false)
-  const [wristImage, setWristImage] = useState<string | null>(null)
-  const [topImage, setTopImage] = useState<string | null>(null)
-  const api = new RobotApiService()
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const apiService = new RobotApiService()
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   // Simulate audio levels when playing
   useEffect(() => {
     let interval: NodeJS.Timeout
-    if (isPlaying) {
+    if (isPlaying || isRecording) {
       interval = setInterval(() => {
         setAudioLevel(Math.random() * 100)
       }, 100)
     }
     return () => clearInterval(interval)
-  }, [isPlaying])
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
-    if (camera1Connected) {
-      const fetchWrist = () => {
-        api.getCameraWrist().then(res => {
-          if (res.success && res.imageData) setWristImage(res.imageData)
-        })
-      }
-      fetchWrist()
-      interval = setInterval(fetchWrist, 67) // ~15 fps
-    } else {
-      setWristImage(null)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [camera1Connected])
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
-    if (camera2Connected) {
-      const fetchTop = () => {
-        api.getCameraTop().then(res => {
-          if (res.success && res.imageData) setTopImage(res.imageData)
-        })
-      }
-      fetchTop()
-      interval = setInterval(fetchTop, 67) // ~15 fps
-    } else {
-      setTopImage(null)
-    }
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [camera2Connected])
+  }, [isPlaying, isRecording])
 
   // Generate dots for the voice visualization
   const generateDots = () => {
@@ -89,12 +64,106 @@ export default function HomePage() {
 
   const [dots] = useState(generateDots())
 
-  const togglePlayback = () => {
-    setIsPlaying(!isPlaying)
+  // Start voice recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mediaRecorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = mediaRecorder
+      audioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data)
+      }
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
+        await processVoiceRecording(audioBlob)
+        stream.getTracks().forEach((track) => track.stop())
+      }
+
+      mediaRecorder.start()
+      setIsRecording(true)
+      setIsMicActive(true)
+    } catch (error) {
+      console.error("Error starting recording:", error)
+    }
+  }
+
+  // Stop voice recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
+      setIsMicActive(false)
+    }
+  }
+
+  // Process voice recording
+  const processVoiceRecording = async (audioBlob: Blob) => {
+    setIsProcessing(true)
+
+    try {
+      // Convert audio blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
+
+      // Call high-level processing API
+      const response = await apiService.processHighLevel(base64Audio, "wav")
+
+      if (response.success) {
+        // Add robot response to chat
+        const robotMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: response.text,
+          sender: "robot",
+          timestamp: response.timestamp,
+          hasAudio: response.hasAudio,
+        }
+        setMessages((prev) => [...prev, robotMessage])
+
+        // Auto-play audio if available
+        if (response.hasAudio && response.audioData) {
+          playAudio(response.audioData)
+        }
+      } else {
+        // Add error message
+        const errorMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: `Error: ${response.error || "Failed to process voice"}`,
+          sender: "robot",
+          timestamp: new Date().toISOString(),
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      }
+    } catch (error) {
+      console.error("Error processing voice:", error)
+      const errorMessage: ChatMessage = {
+        id: Date.now().toString(),
+        text: "Error: Failed to process voice recording",
+        sender: "robot",
+        timestamp: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // Play audio
+  const playAudio = (audioData: string) => {
+    const audio = new Audio(audioData)
+    setIsPlaying(true)
+    audio.play()
+    audio.onended = () => setIsPlaying(false)
   }
 
   const toggleMic = () => {
-    setIsMicActive(!isMicActive)
+    if (isRecording) {
+      stopRecording()
+    } else {
+      startRecording()
+    }
   }
 
   return (
@@ -104,28 +173,29 @@ export default function HomePage() {
 
       {/* Main Split Screen */}
       <div className="flex-1 flex">
-        {/* Left Side - Voice Visualization */}
+        {/* Left Side - Voice Visualization and Chat */}
         <div className="w-1/2 bg-gray-900 flex flex-col">
-          <div className="h-full flex flex-col items-center justify-center relative">
+          {/* Voice Visualization - Top Half */}
+          <div className="h-1/2 flex flex-col items-center justify-center relative">
             {/* Voice Visualization Circle */}
-            <div className="relative w-64 h-64">
-              <svg width="256" height="256" className="absolute inset-0">
+            <div className="relative w-48 h-48">
+              <svg width="192" height="192" className="absolute inset-0">
                 <AnimatePresence>
                   {dots.map((dot) => (
                     <motion.circle
                       key={dot.id}
-                      cx={dot.x * 0.8}
-                      cy={dot.y * 0.8}
-                      r={isPlaying ? 1.5 * dot.scale : 1 * dot.scale}
+                      cx={dot.x * 0.6}
+                      cy={dot.y * 0.6}
+                      r={isPlaying || isRecording ? 1.5 * dot.scale : 1 * dot.scale}
                       fill="white"
                       initial={{ opacity: 0 }}
                       animate={{
-                        opacity: isPlaying ? dot.opacity * (audioLevel / 100) : dot.opacity * 0.3,
-                        scale: isPlaying ? [1, 1.2, 1] : 1,
+                        opacity: isPlaying || isRecording ? dot.opacity * (audioLevel / 100) : dot.opacity * 0.3,
+                        scale: isPlaying || isRecording ? [1, 1.2, 1] : 1,
                       }}
                       transition={{
-                        duration: isPlaying ? 0.5 : 1,
-                        repeat: isPlaying ? Number.POSITIVE_INFINITY : 0,
+                        duration: isPlaying || isRecording ? 0.5 : 1,
+                        repeat: isPlaying || isRecording ? Number.POSITIVE_INFINITY : 0,
                         delay: dot.id * 0.01,
                       }}
                     />
@@ -133,16 +203,16 @@ export default function HomePage() {
                 </AnimatePresence>
 
                 {/* Central pulse effect */}
-                {isPlaying && (
+                {(isPlaying || isRecording) && (
                   <motion.circle
-                    cx="128"
-                    cy="128"
-                    r="16"
+                    cx="96"
+                    cy="96"
+                    r="12"
                     fill="none"
-                    stroke="white"
+                    stroke={isRecording ? "red" : "white"}
                     strokeWidth="2"
-                    initial={{ r: 16, opacity: 0.8 }}
-                    animate={{ r: 48, opacity: 0 }}
+                    initial={{ r: 12, opacity: 0.8 }}
+                    animate={{ r: 36, opacity: 0 }}
                     transition={{
                       duration: 2,
                       repeat: Number.POSITIVE_INFINITY,
@@ -157,37 +227,119 @@ export default function HomePage() {
             <div className="text-center mt-4">
               <motion.p
                 className="text-white text-lg font-medium"
-                animate={{ opacity: isPlaying ? [1, 0.5, 1] : 1 }}
-                transition={{ duration: 1.5, repeat: isPlaying ? Number.POSITIVE_INFINITY : 0 }}
+                animate={{ opacity: isPlaying || isRecording ? [1, 0.5, 1] : 1 }}
+                transition={{ duration: 1.5, repeat: isPlaying || isRecording ? Number.POSITIVE_INFINITY : 0 }}
               >
-                {isPlaying ? "Playing response..." : "Ready to respond"}
+                {isRecording
+                  ? "Recording..."
+                  : isProcessing
+                    ? "Processing..."
+                    : isPlaying
+                      ? "Playing response..."
+                      : "Ready to respond"}
               </motion.p>
               <p className="text-gray-400 text-sm mt-1">
-                {isPlaying ? "Audio response playing" : "Click play to start"}
+                {isRecording
+                  ? "Speak now, click to stop"
+                  : isProcessing
+                    ? "Processing your voice..."
+                    : "Click mic to talk to robot"}
               </p>
             </div>
 
-            {/* Controls */}
+            {/* Voice Controls */}
             <div className="flex gap-3 mt-4">
               <Button
-                onClick={togglePlayback}
-                variant={isPlaying ? "secondary" : "default"}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                {isPlaying ? "Pause" : "Play"}
-              </Button>
-
-              <Button
                 onClick={toggleMic}
-                variant={isMicActive ? "destructive" : "outline"}
+                variant={isRecording ? "destructive" : isMicActive ? "secondary" : "outline"}
                 size="sm"
                 className="flex items-center gap-2"
+                disabled={isProcessing}
               >
-                {isMicActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-                {isMicActive ? "Mute" : "Unmute"}
+                {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isRecording ? "Stop Recording" : "Talk to Robot"}
               </Button>
+            </div>
+          </div>
+
+          {/* Robot Chat - Bottom Half */}
+          <div className="h-1/2 flex flex-col bg-gray-800 border-t border-gray-700">
+            <div className="p-4 border-b border-gray-700">
+              <h3 className="text-white font-medium flex items-center gap-2">
+                <Bot className="w-5 h-5 text-blue-400" />
+                Robot Responses
+              </h3>
+            </div>
+
+            {/* Messages - Only Robot Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 && !isProcessing && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="bg-gray-700 text-gray-100 px-4 py-3 rounded-lg rounded-tl-none max-w-xs">
+                    <p className="text-sm">Hello! I'm ready to help. Click the microphone to start talking to me.</p>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((message) => (
+                <div key={message.id} className="flex items-start gap-3">
+                  {/* Robot Avatar */}
+                  <motion.div
+                    className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0"
+                    animate={message.hasAudio && isPlaying ? { scale: [1, 1.1, 1] } : {}}
+                    transition={{ duration: 0.5, repeat: message.hasAudio && isPlaying ? Number.POSITIVE_INFINITY : 0 }}
+                  >
+                    <Bot className="w-4 h-4 text-white" />
+                  </motion.div>
+
+                  {/* Message Bubble */}
+                  <div className="bg-gray-700 text-gray-100 px-4 py-3 rounded-lg rounded-tl-none max-w-xs">
+                    <p className="text-sm">{message.text}</p>
+                    {message.hasAudio && (
+                      <div className="flex items-center gap-1 mt-2 text-xs text-blue-300">
+                        <motion.div
+                          animate={isPlaying ? { scale: [1, 1.2, 1] } : {}}
+                          transition={{ duration: 0.5, repeat: isPlaying ? Number.POSITIVE_INFINITY : 0 }}
+                        >
+                          🔊
+                        </motion.div>
+                        <span>{isPlaying ? "Playing..." : "Audio response"}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {isProcessing && (
+                <div className="flex items-start gap-3">
+                  <motion.div
+                    className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                  >
+                    <Bot className="w-4 h-4 text-white" />
+                  </motion.div>
+                  <div className="bg-gray-700 text-gray-100 px-4 py-3 rounded-lg rounded-tl-none">
+                    <div className="flex items-center gap-2">
+                      <motion.div
+                        className="flex gap-1"
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY }}
+                      >
+                        <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                        <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                        <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                      </motion.div>
+                      <span className="text-sm text-gray-300">Thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
             </div>
           </div>
         </div>
@@ -239,11 +391,12 @@ export default function HomePage() {
                 </h4>
                 <div className="aspect-video bg-gray-800 rounded flex items-center justify-center">
                   {camera1Connected ? (
-                    wristImage ? (
-                      <img src={wristImage} alt="Wrist Camera" className="w-full h-full object-cover rounded" />
-                    ) : (
-                      <span className="text-gray-400 text-sm">Loading...</span>
-                    )
+                    <div
+                      className="w-full h-full bg-cover bg-center rounded"
+                      style={{
+                        backgroundImage: "url('/placeholder.svg?height=200&width=300&text=Wrist+Camera')",
+                      }}
+                    />
                   ) : (
                     <span className="text-gray-400 text-sm">Camera Disconnected</span>
                   )}
@@ -258,11 +411,12 @@ export default function HomePage() {
                 </h4>
                 <div className="aspect-video bg-gray-800 rounded flex items-center justify-center">
                   {camera2Connected ? (
-                    topImage ? (
-                      <img src={topImage} alt="Top Camera" className="w-full h-full object-cover rounded" />
-                    ) : (
-                      <span className="text-gray-400 text-sm">Loading...</span>
-                    )
+                    <div
+                      className="w-full h-full bg-cover bg-center rounded"
+                      style={{
+                        backgroundImage: "url('/placeholder.svg?height=200&width=300&text=Top+Camera')",
+                      }}
+                    />
                   ) : (
                     <span className="text-gray-400 text-sm">Camera Disconnected</span>
                   )}
