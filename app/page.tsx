@@ -8,7 +8,6 @@ import { RobotApiService } from "@/services/api-service"
 import type { ChatMessage } from "@/types/api-contract"
 
 export default function HomePage() {
-  const [isPlaying, setIsPlaying] = useState(false)
   const [isMicActive, setIsMicActive] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
@@ -33,19 +32,19 @@ export default function HomePage() {
   // Simulate audio levels when playing
   useEffect(() => {
     let interval: NodeJS.Timeout
-    if (isPlaying || isRecording) {
+    if (isRecording) {
       interval = setInterval(() => {
         setAudioLevel(Math.random() * 100)
       }, 100)
     }
     return () => clearInterval(interval)
-  }, [isPlaying, isRecording])
+  }, [isRecording])
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
     if (camera1Connected) {
       const fetchWrist = () => {
-        apiService.getCameraWrist().then(res => {
+        apiService.getCameraWrist().then((res) => {
           if (res.success && res.imageData) setWristImage(res.imageData)
         })
       }
@@ -63,7 +62,7 @@ export default function HomePage() {
     let interval: NodeJS.Timeout | null = null
     if (camera2Connected) {
       const fetchTop = () => {
-        apiService.getCameraTop().then(res => {
+        apiService.getCameraTop().then((res) => {
           if (res.success && res.imageData) setTopImage(res.imageData)
         })
       }
@@ -160,11 +159,6 @@ export default function HomePage() {
           hasAudio: response.hasAudio,
         }
         setMessages((prev) => [...prev, robotMessage])
-
-        // Auto-play audio if available
-        if (response.hasAudio && response.audioData) {
-          playAudio(response.audioData)
-        }
       } else {
         // Add error message
         const errorMessage: ChatMessage = {
@@ -187,14 +181,6 @@ export default function HomePage() {
     } finally {
       setIsProcessing(false)
     }
-  }
-
-  // Play audio
-  const playAudio = (audioData: string) => {
-    const audio = new Audio(audioData)
-    setIsPlaying(true)
-    audio.play()
-    audio.onended = () => setIsPlaying(false)
   }
 
   const toggleMic = () => {
@@ -225,16 +211,16 @@ export default function HomePage() {
                       key={dot.id}
                       cx={dot.x * 0.6}
                       cy={dot.y * 0.6}
-                      r={isPlaying || isRecording ? 1.5 * dot.scale : 1 * dot.scale}
+                      r={isRecording ? 1.5 * dot.scale : 1 * dot.scale}
                       fill="white"
                       initial={{ opacity: 0 }}
                       animate={{
-                        opacity: isPlaying || isRecording ? dot.opacity * (audioLevel / 100) : dot.opacity * 0.3,
-                        scale: isPlaying || isRecording ? [1, 1.2, 1] : 1,
+                        opacity: isRecording ? dot.opacity * (audioLevel / 100) : dot.opacity * 0.3,
+                        scale: isRecording ? [1, 1.2, 1] : 1,
                       }}
                       transition={{
-                        duration: isPlaying || isRecording ? 0.5 : 1,
-                        repeat: isPlaying || isRecording ? Number.POSITIVE_INFINITY : 0,
+                        duration: isRecording ? 0.5 : 1,
+                        repeat: isRecording ? Number.POSITIVE_INFINITY : 0,
                         delay: dot.id * 0.01,
                       }}
                     />
@@ -242,13 +228,13 @@ export default function HomePage() {
                 </AnimatePresence>
 
                 {/* Central pulse effect */}
-                {(isPlaying || isRecording) && (
+                {isRecording && (
                   <motion.circle
                     cx="96"
                     cy="96"
                     r="12"
                     fill="none"
-                    stroke={isRecording ? "red" : "white"}
+                    stroke="red"
                     strokeWidth="2"
                     initial={{ r: 12, opacity: 0.8 }}
                     animate={{ r: 36, opacity: 0 }}
@@ -266,16 +252,10 @@ export default function HomePage() {
             <div className="text-center mt-4">
               <motion.p
                 className="text-white text-lg font-medium"
-                animate={{ opacity: isPlaying || isRecording ? [1, 0.5, 1] : 1 }}
-                transition={{ duration: 1.5, repeat: isPlaying || isRecording ? Number.POSITIVE_INFINITY : 0 }}
+                animate={{ opacity: isRecording ? [1, 0.5, 1] : 1 }}
+                transition={{ duration: 1.5, repeat: isRecording ? Number.POSITIVE_INFINITY : 0 }}
               >
-                {isRecording
-                  ? "Recording..."
-                  : isProcessing
-                    ? "Processing..."
-                    : isPlaying
-                      ? "Playing response..."
-                      : "Ready to respond"}
+                {isRecording ? "Recording..." : isProcessing ? "Processing..." : "Ready to respond"}
               </motion.p>
               <p className="text-gray-400 text-sm mt-1">
                 {isRecording
@@ -326,28 +306,13 @@ export default function HomePage() {
               {messages.map((message) => (
                 <div key={message.id} className="flex items-start gap-3">
                   {/* Robot Avatar */}
-                  <motion.div
-                    className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0"
-                    animate={message.hasAudio && isPlaying ? { scale: [1, 1.1, 1] } : {}}
-                    transition={{ duration: 0.5, repeat: message.hasAudio && isPlaying ? Number.POSITIVE_INFINITY : 0 }}
-                  >
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                     <Bot className="w-4 h-4 text-white" />
-                  </motion.div>
+                  </div>
 
                   {/* Message Bubble */}
                   <div className="bg-gray-700 text-gray-100 px-4 py-3 rounded-lg rounded-tl-none max-w-xs">
                     <p className="text-sm">{message.text}</p>
-                    {message.hasAudio && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-blue-300">
-                        <motion.div
-                          animate={isPlaying ? { scale: [1, 1.2, 1] } : {}}
-                          transition={{ duration: 0.5, repeat: isPlaying ? Number.POSITIVE_INFINITY : 0 }}
-                        >
-                          🔊
-                        </motion.div>
-                        <span>{isPlaying ? "Playing..." : "Audio response"}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -431,7 +396,11 @@ export default function HomePage() {
                 <div className="aspect-video bg-gray-800 rounded flex items-center justify-center">
                   {camera1Connected ? (
                     wristImage ? (
-                      <img src={wristImage} alt="Wrist Camera" className="w-full h-full object-cover rounded" />
+                      <img
+                        src={wristImage || "/placeholder.svg"}
+                        alt="Wrist Camera"
+                        className="w-full h-full object-cover rounded"
+                      />
                     ) : (
                       <span className="text-gray-400 text-sm">Loading...</span>
                     )
@@ -450,7 +419,11 @@ export default function HomePage() {
                 <div className="aspect-video bg-gray-800 rounded flex items-center justify-center">
                   {camera2Connected ? (
                     topImage ? (
-                      <img src={topImage} alt="Top Camera" className="w-full h-full object-cover rounded" />
+                      <img
+                        src={topImage || "/placeholder.svg"}
+                        alt="Top Camera"
+                        className="w-full h-full object-cover rounded"
+                      />
                     ) : (
                       <span className="text-gray-400 text-sm">Loading...</span>
                     )
