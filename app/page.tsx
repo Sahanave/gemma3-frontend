@@ -150,15 +150,15 @@ export default function HomePage() {
       const response = await apiService.processHighLevel(base64Audio, "wav")
 
       if (response.success) {
-        // Add robot response to chat
+        // Add robot response to chat (text only)
         const robotMessage: ChatMessage = {
           id: Date.now().toString(),
           text: response.text,
           sender: "robot",
           timestamp: response.timestamp,
-          hasAudio: response.hasAudio,
         }
         setMessages((prev) => [...prev, robotMessage])
+        // Do NOT play audio from backend
       } else {
         // Add error message
         const errorMessage: ChatMessage = {

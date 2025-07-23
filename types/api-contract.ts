@@ -45,8 +45,6 @@ export interface HighLevelRequest {
 export interface HighLevelResponse {
   success: boolean
   text: string // Response text to display in chat
-  audioData?: string // base64 encoded audio: "data:audio/wav;base64,..."
-  hasAudio: boolean
   timestamp: string
   error?: string
 }

@@ -104,7 +104,6 @@ export class RobotApiService {
       return {
         success: false,
         text: "",
-        hasAudio: false,
         timestamp: new Date().toISOString(),
         error: `Failed to process high level: ${error}`,
       }
