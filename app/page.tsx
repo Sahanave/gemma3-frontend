@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Play, Pause, Mic, MicOff } from "lucide-react"
+import { RobotApiService } from "@/services/api-service"
 
 export default function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -11,6 +12,9 @@ export default function HomePage() {
   const [audioLevel, setAudioLevel] = useState(0)
   const [camera1Connected, setCamera1Connected] = useState(false)
   const [camera2Connected, setCamera2Connected] = useState(false)
+  const [wristImage, setWristImage] = useState<string | null>(null)
+  const [topImage, setTopImage] = useState<string | null>(null)
+  const api = new RobotApiService()
 
   // Simulate audio levels when playing
   useEffect(() => {
@@ -22,6 +26,42 @@ export default function HomePage() {
     }
     return () => clearInterval(interval)
   }, [isPlaying])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    if (camera1Connected) {
+      const fetchWrist = () => {
+        api.getCameraWrist().then(res => {
+          if (res.success && res.imageData) setWristImage(res.imageData)
+        })
+      }
+      fetchWrist()
+      interval = setInterval(fetchWrist, 67) // ~15 fps
+    } else {
+      setWristImage(null)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [camera1Connected])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    if (camera2Connected) {
+      const fetchTop = () => {
+        api.getCameraTop().then(res => {
+          if (res.success && res.imageData) setTopImage(res.imageData)
+        })
+      }
+      fetchTop()
+      interval = setInterval(fetchTop, 67) // ~15 fps
+    } else {
+      setTopImage(null)
+    }
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [camera2Connected])
 
   // Generate dots for the voice visualization
   const generateDots = () => {
@@ -199,12 +239,11 @@ export default function HomePage() {
                 </h4>
                 <div className="aspect-video bg-gray-800 rounded flex items-center justify-center">
                   {camera1Connected ? (
-                    <div
-                      className="w-full h-full bg-cover bg-center rounded"
-                      style={{
-                        backgroundImage: "url('/placeholder.svg?height=200&width=300&text=Wrist+Camera')",
-                      }}
-                    />
+                    wristImage ? (
+                      <img src={wristImage} alt="Wrist Camera" className="w-full h-full object-cover rounded" />
+                    ) : (
+                      <span className="text-gray-400 text-sm">Loading...</span>
+                    )
                   ) : (
                     <span className="text-gray-400 text-sm">Camera Disconnected</span>
                   )}
@@ -219,12 +258,11 @@ export default function HomePage() {
                 </h4>
                 <div className="aspect-video bg-gray-800 rounded flex items-center justify-center">
                   {camera2Connected ? (
-                    <div
-                      className="w-full h-full bg-cover bg-center rounded"
-                      style={{
-                        backgroundImage: "url('/placeholder.svg?height=200&width=300&text=Top+Camera')",
-                      }}
-                    />
+                    topImage ? (
+                      <img src={topImage} alt="Top Camera" className="w-full h-full object-cover rounded" />
+                    ) : (
+                      <span className="text-gray-400 text-sm">Loading...</span>
+                    )
                   ) : (
                     <span className="text-gray-400 text-sm">Camera Disconnected</span>
                   )}

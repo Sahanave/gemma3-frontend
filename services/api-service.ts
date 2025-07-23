@@ -1,7 +1,7 @@
 // Updated API service to use local config
 
 import { API_CONFIG } from "@/lib/config"
-import type { SendTaskRequest, SendTaskResponse, CameraWristResponse, CameraTopResponse } from "../types/api-contract"
+import type { SendTaskRequest, SendTaskResponse, CameraWristResponse, CameraTopResponse, GenerateAudioRequest, GenerateAudioResponse } from "../types/api-contract"
 
 export class RobotApiService {
   private baseUrl: string
@@ -71,6 +71,30 @@ export class RobotApiService {
       return {
         success: false,
         error: `Failed to get top camera: ${error}`,
+      }
+    }
+  }
+
+  // 4. Generate Audio
+  async generateAudio(script: string): Promise<GenerateAudioResponse> {
+    const requestData: GenerateAudioRequest = {
+      script,
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}${API_CONFIG.endpoints.generateAudio}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      })
+
+      return await response.json()
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to generate audio: ${error}`,
       }
     }
   }

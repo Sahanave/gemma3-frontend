@@ -5,5 +5,6 @@ export const API_CONFIG = {
     sendTask: "/api/send-task",
     cameraWrist: "/api/camera/wrist",
     cameraTop: "/api/camera/top",
+    generateAudio: "/api/generate-audio",
   },
 }

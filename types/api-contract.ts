@@ -35,6 +35,19 @@ export interface CameraTopResponse {
   error?: string
 }
 
+// 4. Generate Audio
+export interface GenerateAudioRequest {
+  script: string
+}
+
+export interface GenerateAudioResponse {
+  success: boolean
+  audioData?: string // base64 encoded audio
+  format?: string
+  timestamp?: string
+  error?: string
+}
+
 // API Response wrapper
 export interface ApiResponse<T = any> {
   success: boolean
