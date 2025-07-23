@@ -34,4 +34,4 @@ export function useSpeechToText() {
   }
 
   return { transcript, listening, startListening, stopListening, setTranscript }
-} 
+}
